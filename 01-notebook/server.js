@@ -27,8 +27,8 @@ function renderNotes(req, res) {
                   '</form>');
         res.write('<ul class="notes">');
         rows.forEach(function (row) {
-            res.write('<li>' + escape_html(row.text) + '</li>');
-            res.write('<form action="/delete" method="POST">' + `<input type="hidden" name="deleteNote" value="${row.id}"/>` + '<button>Delete</button>' + '</form>')
+            res.write('<li>' + escape_html(row.text));
+            res.write('<form action="/delete" method="POST">' + `<input type="hidden" name="deleteNote" value="${row.id}"/>` + '<button class="button">Delete</button>' + '</form>' + '</li>')
         });
         res.end('</ul>');
     });
@@ -59,10 +59,10 @@ var server = http.createServer(function (req, res) {
             req.on('data', function (data) {
                 body += data;
             });
+
             req.on('end', function () {
                 var form = querystring.parse(body);
-                console.log(form.id);
-            db.exec('DELETE FROM notes WHERE rowid="' + form.value + '"', function (err) {
+            db.exec('DELETE FROM notes WHERE rowid="' + form.deleteNote + '"', function (err) {
                 console.error(err);
                 res.writeHead(201, {'Content-Type': 'text/html'});
                 renderNotes(req, res);
