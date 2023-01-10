@@ -72,6 +72,7 @@ var server = http.createServer(function (req, res) {
                
     }
 });
+
 });
 
 // initialize database and start the server
