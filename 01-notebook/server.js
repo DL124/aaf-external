@@ -54,11 +54,24 @@ var server = http.createServer(function (req, res) {
                 });
             });
         } else if (req.method == 'POST' && req.url == '/delete') {
-            console.log('You have requested to delete a note.')
-            res.writeHead(201, {'Content-Type': 'text/html'});
-            renderNotes(req, res);
-        }
-    });
+            
+            var body = '';
+            req.on('data', function (data) {
+                body += data;
+            });
+            req.on('end', function () {
+                var form = querystring.parse(body);
+                console.log(form.id);
+            db.exec('DELETE FROM notes WHERE rowid="' + form.value + '"', function (err) {
+                console.error(err);
+                res.writeHead(201, {'Content-Type': 'text/html'});
+                renderNotes(req, res);
+            });
+        });
+          
+               
+    }
+});
 });
 
 // initialize database and start the server
