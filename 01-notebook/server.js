@@ -1,4 +1,5 @@
 var http = require('http');
+var url = require('url');
 var querystring = require('querystring');
 var escape_html = require('escape-html');
 var serveStatic = require('serve-static');
@@ -20,13 +21,14 @@ function renderNotes(req, res) {
         }
         res.write('<link rel="stylesheet" href="style.css">' +
                   '<h1>AAF Notebook</h1>' +
-                  '<form method="POST">' +
+                  '<form method="POST" action="create">' +
                   '<label>Note: <input name="note" value=""></label>' +
                   '<button>Add</button>' +
                   '</form>');
         res.write('<ul class="notes">');
         rows.forEach(function (row) {
-            res.write('<li>' + escape_html(row.text) + '</li>');
+            res.write('<li>' + escape_html(row.text));
+            res.write('<form action="/delete" method="POST">' + `<input type="hidden" name="deleteNote" value="${row.id}"/>` + '<button class="button">Delete</button>' + '</form>' + '</li>')
         });
         res.end('</ul>');
     });
@@ -38,7 +40,7 @@ var server = http.createServer(function (req, res) {
             res.writeHead(200, {'Content-Type': 'text/html'});
             renderNotes(req, res);
         }
-        else if (req.method == 'POST') {
+        else if (req.method == 'POST' && req.url == '/create') {
             var body = '';
             req.on('data', function (data) {
                 body += data;
@@ -51,8 +53,25 @@ var server = http.createServer(function (req, res) {
                     renderNotes(req, res);
                 });
             });
-        }
-    });
+        } else if (req.method == 'POST' && req.url == '/delete') {
+            
+            var body = '';
+            req.on('data', function (data) {
+                body += data;
+            });
+
+            req.on('end', function () {
+                var form = querystring.parse(body);
+            db.exec('DELETE FROM notes WHERE rowid="' + form.deleteNote + '"', function (err) {
+                console.error(err);
+                res.writeHead(201, {'Content-Type': 'text/html'});
+                renderNotes(req, res);
+            });
+        });
+          
+               
+    }
+});
 });
 
 // initialize database and start the server
