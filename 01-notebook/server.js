@@ -53,7 +53,8 @@ var server = http.createServer(function (req, res) {
                     console.error(err)
                     res.writeHead(201, {'Content-Type': 'text/html'});
                     renderNotes(req, res);
-                })
+                });
+                
                 query.finalize();
             });
         } else if (req.method == 'POST' && req.url == '/delete') {
@@ -65,11 +66,15 @@ var server = http.createServer(function (req, res) {
 
             req.on('end', function () {
                 var form = querystring.parse(body);
-            db.exec('DELETE FROM notes WHERE rowid="' + form.deleteNote + '"', function (err) {
-                console.error(err);
-                res.writeHead(201, {'Content-Type': 'text/html'});
-                renderNotes(req, res);
-            });
+                var query = db.prepare('DELETE FROM notes WHERE rowid=?');
+                
+                query.run(form.deleteNote, function(err) {
+                    console.error(err);
+                    res.writeHead(201, {'Content-Type': 'text/html'});
+                    renderNotes(req, res);
+                });
+
+                query.finalize();
         });
           
                
