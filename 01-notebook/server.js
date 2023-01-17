@@ -47,11 +47,15 @@ var server = http.createServer(function (req, res) {
             });
             req.on('end', function () {
                 var form = querystring.parse(body);
-                db.exec('INSERT INTO notes VALUES ("' + form.note + '");', function (err) {
-                    console.error(err);
+                var query = db.prepare('INSERT INTO notes (text) VALUES (?)');
+            
+                query.run(form.note, function(err) {
+                    console.error(err)
                     res.writeHead(201, {'Content-Type': 'text/html'});
                     renderNotes(req, res);
                 });
+                
+                query.finalize();
             });
         } else if (req.method == 'POST' && req.url == '/delete') {
             
@@ -62,17 +66,20 @@ var server = http.createServer(function (req, res) {
 
             req.on('end', function () {
                 var form = querystring.parse(body);
-            db.exec('DELETE FROM notes WHERE rowid="' + form.deleteNote + '"', function (err) {
-                console.error(err);
-                res.writeHead(201, {'Content-Type': 'text/html'});
-                renderNotes(req, res);
-            });
+                var query = db.prepare('DELETE FROM notes WHERE rowid=?');
+                
+                query.run(form.deleteNote, function(err) {
+                    console.error(err);
+                    res.writeHead(201, {'Content-Type': 'text/html'});
+                    renderNotes(req, res);
+                });
+
+                query.finalize();
         });
           
                
     }
 });
-
 });
 
 // initialize database and start the server
@@ -81,4 +88,4 @@ db.on('open', function () {
         console.log('Server running at http://127.0.0.1:8080/');
         server.listen(8080);
     });
-});
+}); 
