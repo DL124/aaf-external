@@ -42,26 +42,37 @@ var server = http.createServer(function (req, res) {
         }
         else if (req.method == 'POST' && req.url == '/create') {
             var body = '';
-            req.on('data', function (data) {
-                body += data;
-            });
-            req.on('end', function () {
-                var form = querystring.parse(body);
-                var query = db.prepare('INSERT INTO notes (text) VALUES (?)');
-            
-                query.run(form.note, function(err) {
-                    console.error(err)
-                    res.writeHead(201, {'Content-Type': 'text/html'});
-                    renderNotes(req, res);
-                });
                 
-                query.finalize();
-            });
-        } else if (req.method == 'POST' && req.url == '/delete') {
+                    req.on('data', function (data) {
+                        try{
+                            body += data;
+                        }catch(err){
+                            req.closed=true;
+                            body='error';
+                        } 
+                    });
+                    req.on('end', function () {
+                            var form = querystring.parse(body);
+                            var query = db.prepare('INSERT INTO notes (text) VALUES (?)');
+                            query.run(form.note, function(err) {
+                                console.error(err)
+                                res.writeHead(201, {'Content-Type': 'text/html'});
+                                renderNotes(req, res);
+                            });
+                            
+                            query.finalize();
+                        
+                    });                
             
+        } else if (req.method == 'POST' && req.url == '/delete') {    
             var body = '';
             req.on('data', function (data) {
-                body += data;
+                try{
+                    body += data;
+                }catch(err){
+                    req.closed=true;
+                    body='error';
+                } 
             });
 
             req.on('end', function () {
