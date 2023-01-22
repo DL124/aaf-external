@@ -22,7 +22,7 @@ function renderNotes(req, res) {
         res.write('<link rel="stylesheet" href="style.css">' +
                   '<h1>AAF Notebook</h1>' +
                   '<form method="POST" action="create">' +
-                  '<label>Note: <input name="note" value=""></label>' +
+                  '<label>Note: <input name="note" value="" onpaste="return false;" onDrop="return false" maxlength="500"></label>' +
                   '<button>Add</button>' +
                   '</form>');
         res.write('<ul class="notes">');
