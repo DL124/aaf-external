@@ -1,0 +1,79 @@
+Description: Setup for notes app
+
+Resources:
+  NotesEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-09744628bed84e434
+      InstanceType: t2.micro
+      KeyName: DL-AWS-KEY # give us access to ssh into the machine
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          sudo apt update
+          sudo apt -y install -y gcc-c++ make
+          sudo apt -y install screen
+          curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+          sudo apt install -y nodejs 
+          cd /home/ubuntu
+          sudo su - ubuntu -c 'git clone https://github.com/JabbaSec/aaf-internal-notes-system'
+          cd notes-nodejs/01-notebook
+          sudo su - ubuntu -c 'screen -S "notesappscreen" -d -m'
+          sudo apt -y install npm 
+          sudo su - ubuntu -c 'screen -r "notesappscreen" -X stuff "cd notes-nodejs/01-notebook\n"'
+          sudo su - ubuntu -c 'screen -r "notesappscreen" -X stuff "npm install escape-html\n"'
+          sudo su - ubuntu -c 'screen -r "notesappscreen" -X stuff "sudo node server.js\n"'
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      Tags:
+        - Key: Name
+          Value: NotesEC2Instance
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      
+  EIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref NotesEC2Instance
+      AllocationId: !GetAtt EIP.AllocationId
+      
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: block anything but SSH and http
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: SecurityGroup
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: notes-backup-charlie-ethan
+      Tags:
+        - Key: Name
+          Value: S3Bucket
+
+Outputs:
+  EC2InstanceId:
+    Value: !Ref NotesEC2Instance
+    Description: the id of the ec2 instance
+  S3BucketName:
+    Value: !Ref S3Bucket
+    Description: s3 bucket name
+  EIPAllocationId:
+    Value: !GetAtt EIP.AllocationId
+    Description: allocation id of the elastic ip
