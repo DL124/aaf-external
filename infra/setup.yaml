@@ -1,0 +1,179 @@
+Description: Setup for notes app
+
+Parameters:
+  VpcCidr:
+    Description: VPC CIDR
+    Type: String
+    Default: "146.32.0.124/22"
+  
+  PubASubACidr:
+    Description: PubSubnet CIDR
+    Type: String
+    Default: "146.32.0.124/24"
+  
+  PrivASubACidr:
+    Description: PrivSubnet CIDR
+    Type: String
+    Default: "146.32.2.124/24"
+  
+  AvailabilityZone:  
+    Description: Default availability zone
+    Type: String
+    Default: eu-west-2a
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Sub ${VpcCidr}
+      InstanceTenancy: default
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: dl-vpc
+
+  InternetGateway: #gateway to access internet 
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: dl-gw
+  
+  InternetGatewayAttachment: #attaches gateway to vpc
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  
+  PubSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-2a
+      MapPublicIpOnLaunch: true
+      CidrBlock: !Sub ${PubASubACidr}
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: dl-pub-subnet
+
+  PubRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: dl-pub-route-table
+
+  PubRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PubRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PubRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PubSubnet
+      RouteTableId: !Ref PubRouteTable
+
+  PrivSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:      
+      AvailabilityZone: eu-west-2a
+      MapPublicIpOnLaunch: false
+      CidrBlock: !Sub ${PrivASubACidr}
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: dl-priv-route-table
+
+  PrivRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: dl-priv-route-table
+
+  PrivRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+  
+  PrivRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: PrivRoute
+    Properties:
+      SubnetId: !Ref PrivSubnet
+      RouteTableId: !Ref PrivRouteTable
+
+  NotesEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-09744628bed84e434
+      InstanceType: t2.micro
+      KeyName: DL-key # give us access to ssh into the machine
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          ./userdata.sh
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      Tags:
+          - Key: Name
+            Value: dl-ec2 
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIP.AllocationId
+      SubnetId: !Ref PubSubnet
+    
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: block anything but SSH and http
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: SecurityGroup
+  
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: notes-backup-dl
+      Tags:
+        - Key: Name
+          Value: S3Bucket
+
+Outputs:
+  EC2InstanceId:
+    Value: !Ref NotesEC2Instance
+    Description: the id of the ec2 instance
+  S3BucketName:
+    Value: !Ref S3Bucket
+    Description: s3 bucket name
+  EIPAllocationId:
+    Value: !GetAtt EIP.AllocationId
+    Description: allocation id of the elastic ip
